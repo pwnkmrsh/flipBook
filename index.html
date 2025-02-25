@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive PDF Flipbook with Navigation</title>
+
+    <!-- Load jQuery and Turn.js -->
+    <script src="assets/jquery-3.6.0.min.js"></script>
+    <script src="assets/turn.min.js"></script>
+    <script src="assets/pdf.min.js"></script>
+ 
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 10px;
+        }
+        #loader {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 10;
+        }
+        .spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #007bff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #flipbook {
+            width: 90%;
+            max-width: 800px;
+            height: auto;
+            max-height: 600px;
+            display: none;
+        }
+        .page {
+            width: 100%;
+            height: 100%;
+            background: rgb(238, 229, 229);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        button, input {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        input {
+            width: 60px;
+            text-align: center;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loader -->
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Flipbook Container -->
+    <div id="flipbook">
+        <!-- Cover Page -->
+        <div class="page" id="coverPage">
+            <div style="width: 100%;">
+                <h1>Welcome to the Flipbook</h1>
+                <p>Click "Next" to start reading</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="controls">
+        <button id="prevBtn">Previous</button>
+        <input type="number" id="pageNumber" min="1">
+        <button id="goBtn">Go</button>
+        <button id="nextBtn">Next</button>
+    </div>
+
+    <script>
+        const pdfPath = "your-pdf-file.pdf"; // Change this to your actual PDF file
+        let totalPages = 0;
+
+        // Fix deprecated API issue
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        function loadPDF(pdfPath) {
+            pdfjsLib.getDocument(pdfPath).promise.then(pdf => {
+                totalPages = pdf.numPages;
+                let loadedPages = 0;
+
+                for (let i = 1; i <= totalPages; i++) {
+                    pdf.getPage(i).then(page => {
+                        const viewport = page.getViewport({ scale: 1.5 });
+                        const canvas = document.createElement("canvas");
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        const context = canvas.getContext("2d");
+
+                        page.render({ canvasContext: context, viewport: viewport }).promise.then(() => {
+                            const img = document.createElement("img");
+                            img.src = canvas.toDataURL("image/png");
+                            img.classList.add("page");
+
+                            document.getElementById("flipbook").appendChild(img);
+                            loadedPages++;
+
+                            // Apply turn.js when all pages are loaded
+                            if (loadedPages === totalPages) {
+                                $("#flipbook").turn({
+                                    width: "100%",
+                                    height: "100%",
+                                    autoCenter: true,
+                                    when: {
+                                        turned: function(event, page) {
+                                            updateButtons(page, totalPages + 1);
+                                        }
+                                    }
+                                });
+
+                                updateButtons(1, totalPages + 1);
+                                document.getElementById("pageNumber").setAttribute("max", totalPages + 1);
+
+                                // Hide loader and show flipbook
+                                $("#loader").fadeOut();
+                                $("#flipbook").fadeIn();
+                            }
+                        });
+                    });
+                }
+            });
+        }
+
+        function updateButtons(currentPage, totalPages) {
+            $("#prevBtn").prop("disabled", currentPage === 1);
+            $("#nextBtn").prop("disabled", currentPage === totalPages);
+            $("#pageNumber").val(currentPage);
+        }
+
+        $(document).ready(function() {
+            $("#prevBtn").click(function() {
+                $("#flipbook").turn("previous");
+            });
+
+            $("#nextBtn").click(function() {
+                $("#flipbook").turn("next");
+            });
+
+            $("#goBtn").click(function() {
+                let pageNum = parseInt($("#pageNumber").val());
+                if (pageNum >= 1 && pageNum <= totalPages + 1) {
+                    $("#flipbook").turn("page", pageNum);
+                }
+            });
+
+            $("#pageNumber").keypress(function(event) {
+                if (event.key === "Enter") {
+                    $("#goBtn").click();
+                }
+            });
+        });
+
+        // Show loader, then load the PDF
+        $("#loader").show();
+        loadPDF(pdfPath);
+    </script>
+
+</body>
+</html>
