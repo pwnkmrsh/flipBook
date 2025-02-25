@@ -36,6 +36,7 @@ A simple, responsive PDF flipbook built with **HTML, CSS, JavaScript**, and **Tu
 ## 📷 Screenshots
 
 ![Flipbook Preview](screenshot.png)
+![Flipbook Preview](screenshot1.png)
 
 ## 🏗 Built With
 
